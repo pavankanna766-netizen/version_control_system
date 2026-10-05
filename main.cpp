@@ -201,7 +201,7 @@ string createCommit(string message) {
 
 
 
-    return "";
+    return commitHash;
 }
 
 map<string, string> readIndex() {
@@ -224,6 +224,208 @@ map<string, string> readIndex() {
 
     return index;
 }
+
+void createBranch(string branchName) {
+    fs::path branchPath = fs::path(".mygit") / "refs" / "heads" / branchName;
+
+    if(fs::exists(branchPath)) {
+        cerr << "Branch already exists.\n";
+        return;
+    }
+
+    ifstream headFile(".mygit/HEAD");
+
+    if(!headFile) {
+        cerr << "Failed to read HEAD.\n";
+        return;
+    }
+
+    string headContent;
+    getline(headFile, headContent);
+    headFile.close();
+
+    string branchRef = headContent.substr(5);
+
+    fs::path currentBranchPath = fs::path(".mygit") / branchRef;
+
+    ifstream branchFile(currentBranchPath);
+
+    if(!branchFile) {
+        cerr << "No commits yet.\n";
+        return;
+    }
+
+    string currentCommit;
+    getline(branchFile, currentCommit);
+    branchFile.close();
+
+    ofstream newBranch(branchPath);
+
+    if(!newBranch) {
+        cerr << "Failed to create branch.\n";
+        return;
+    }
+
+    newBranch << currentCommit << '\n';
+    newBranch.close();
+
+    cout << "Created branch " << branchName << " at " << currentCommit << '\n';
+}
+
+map<string, string> readTree(string treeHash) {
+
+    map<string, string> tree;
+
+    fs::path treePath = fs::path(".mygit") / "objects" /treeHash;
+
+    ifstream treeFile(treePath);
+
+    if(!treeFile) {
+        cerr << "Failed to read tree.\n";
+        return tree;
+    }
+
+    string filename;
+    string hash;
+
+    while(treeFile >> filename >> hash) {
+        tree[filename] = hash;
+    }
+
+    treeFile.close();
+    return tree;
+}
+
+void restoreTree(string treeHash) {
+
+    map<string, string> tree = readTree(treeHash);
+
+    for(const auto& entry : tree) {
+
+        string filename = entry.first;
+        string blobHash = entry.second;
+
+        fs::path blobPath = fs::path(".mygit") / "objects" / blobHash;
+
+        ifstream blobFile(blobPath, ios::binary);
+
+        if(!blobFile) {
+            cerr << "Failed to read blob: " << blobHash << '\n';
+            continue;
+        }
+
+        string content((istreambuf_iterator<char>(blobFile)),istreambuf_iterator<char>());
+
+        blobFile.close();
+
+        ofstream outputFile(filename, ios::binary);
+
+        if(!outputFile) {
+            cerr << "Failed to restore " << filename << '\n';
+            continue;
+        }
+
+        outputFile.write(content.data(), content.size());
+        outputFile.close();
+    }
+}
+
+string getTreeFromCommit(string commitHash) {
+
+    fs::path commitPath = fs::path(".mygit") / "objects" / commitHash;
+
+    ifstream commitFile(commitPath);
+
+    if(!commitFile) {
+        cerr << "Failed to read commit.\n";
+        return "";
+    }
+
+    string line;
+
+    while(getline(commitFile, line)) {
+
+        if(line.rfind("tree ",0) ==0) {
+            commitFile.close();
+            return line.substr(5);
+        }
+    }
+    commitFile.close();
+
+    cerr << "Tree not found in commit.\n";
+    return "";
+}
+
+void removeFilesNotInTree(const map<string, string>& tree) {
+
+    for(const auto& entry : fs::directory_iterator(".")) {
+        if(entry.is_directory()) {
+            continue;
+        }
+
+        string filename = entry.path().filename().string();
+
+        if(filename == ".mygit") {
+            continue;
+        }
+
+        string extension = entry.path().extension().string();
+
+        if(filename == "mygit.exe" || extension == ".o" || extension == ".a" || extension == ".dll" || extension == ".lib") {
+            continue;
+        }
+
+        if(tree.find(filename) == tree.end()) {
+            fs::remove(entry.path());
+
+            cout << "Removed: " << filename << '\n';
+
+        }
+    }
+}
+
+void checkoutBranch(string branchName) {
+    fs::path branchPath = fs::path(".mygit") / "refs" / "heads" / branchName;
+
+    if(!fs::exists(branchPath)) {
+        cerr << "Branch does not exist.\n";
+        return;
+    }
+
+    ifstream branchFile(branchPath);
+
+    if(!branchFile) {
+        cerr << "Failed to read branch.\n";
+        return;
+    }
+
+    string commitHash;
+    getline(branchFile, commitHash);
+    branchFile.close();
+
+    string treeHash = getTreeFromCommit(commitHash);
+
+    if(treeHash.empty()) {
+        return;
+    }
+
+    map<string , string> tree = readTree(treeHash);
+    removeFilesNotInTree(tree);
+    restoreTree(treeHash);
+
+    ofstream headFile(".mygit/HEAD");
+
+    if(!headFile) {
+        cerr << "Failed to update HEAD.\n";
+        return;
+    }
+
+    headFile << "ref: refs/heads/" << branchName << '\n';
+    headFile.close();
+
+    cout << "Switched to branch " << branchName << '\n';
+}
+
 
 int main(int argc,char* argv[]) {
     if(argc<2) {
@@ -419,7 +621,9 @@ int main(int argc,char* argv[]) {
 
             string filename = entry.path().filename().string();
 
-            if(filename == "mygit.exe") {
+            string extension = entry.path().extension().string();
+
+            if(filename == "mygit.exe" || extension == ".o" || extension == ".a" || extension == ".dll" || extension == ".lib") {
                 continue;
             }
 
@@ -439,6 +643,34 @@ int main(int argc,char* argv[]) {
             }
 
         }
+
+        for(const auto& entry : index) {
+            string filename = entry.first;
+
+            if(!fs::exists(filename)) {
+                cout << "deleted: " <<filename << '\n';
+            }
+        }
+        return 0;
+    }
+    else if(command == "branch") {
+
+        if(argc < 3) {
+            cerr << "Usage: mygit branch <branch-name>\n";
+            return 1;
+        }
+
+        createBranch(argv[2]);
+        return 0;
+    }
+    else if(command == "checkout") {
+        if(argc < 3) {
+            cerr << "Usage: mygit checkout <branch-name>\n";
+            return 1;
+        }
+
+        checkoutBranch(argv[2]);
+
         return 0;
     }
     
