@@ -225,6 +225,22 @@ map<string, string> readIndex() {
     return index;
 }
 
+void writeIndex(const map<string, string>& index) {
+
+    ofstream indexFile(".mygit/index");
+
+    if(!indexFile) {
+        cerr << "Failed to write index.\n";
+        return;
+    }
+
+    for(const auto& entry : index) {
+        indexFile << entry.first << " " << entry.second << '\n';
+    }
+
+    indexFile.close();
+}
+
 void createBranch(string branchName) {
     fs::path branchPath = fs::path(".mygit") / "refs" / "heads" / branchName;
 
@@ -358,30 +374,53 @@ string getTreeFromCommit(string commitHash) {
 
 void removeFilesNotInTree(const map<string, string>& tree) {
 
-    for(const auto& entry : fs::directory_iterator(".")) {
-        if(entry.is_directory()) {
-            continue;
-        }
+    map<string, string> index = readIndex();
 
-        string filename = entry.path().filename().string();
+    for(const auto& entry : index) {
 
-        if(filename == ".mygit") {
-            continue;
-        }
-
-        string extension = entry.path().extension().string();
-
-        if(filename == "mygit.exe" || extension == ".o" || extension == ".a" || extension == ".dll" || extension == ".lib") {
-            continue;
-        }
+        string filename = entry.first;
 
         if(tree.find(filename) == tree.end()) {
-            fs::remove(entry.path());
 
-            cout << "Removed: " << filename << '\n';
+            if(fs::exists(filename)) {
+                fs::remove(filename);
 
+                cout << "Removed: " << filename << '\n';
+            }
         }
     }
+}
+
+bool hasUncommittedChanges() {
+
+    map<string, string> index = readIndex();
+
+    for(const auto& entry : index) {
+
+        string filename = entry.first;
+        string stagedHash = entry.second;
+
+        if(!fs::exists(filename)) {
+            return true;
+        }
+
+        ifstream file(filename, ios::binary);
+
+        string content(
+            (istreambuf_iterator<char>(file)),
+            istreambuf_iterator<char>()
+        );
+
+        file.close();
+
+        string currentHash = sha256(content);
+
+        if(currentHash != stagedHash) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void checkoutBranch(string branchName) {
@@ -390,6 +429,11 @@ void checkoutBranch(string branchName) {
     if(!fs::exists(branchPath)) {
         cerr << "Branch does not exist.\n";
         return;
+    }
+
+    if(hasUncommittedChanges()) {
+    cerr << "Your local changes would be overwritten by checkout.\n";
+    return;
     }
 
     ifstream branchFile(branchPath);
@@ -412,6 +456,7 @@ void checkoutBranch(string branchName) {
     map<string , string> tree = readTree(treeHash);
     removeFilesNotInTree(tree);
     restoreTree(treeHash);
+    writeIndex(tree);
 
     ofstream headFile(".mygit/HEAD");
 
@@ -425,6 +470,8 @@ void checkoutBranch(string branchName) {
 
     cout << "Switched to branch " << branchName << '\n';
 }
+
+
 
 
 int main(int argc,char* argv[]) {
@@ -623,7 +670,7 @@ int main(int argc,char* argv[]) {
 
             string extension = entry.path().extension().string();
 
-            if(filename == "mygit.exe" || extension == ".o" || extension == ".a" || extension == ".dll" || extension == ".lib") {
+            if(filename == "mygit.exe" || extension == ".o" || extension == ".a" || extension == ".dll" || extension == ".lib" || extension == ".s") {
                 continue;
             }
 
