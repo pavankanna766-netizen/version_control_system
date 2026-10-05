@@ -1,35 +1,46 @@
-# version_control_system
+# MyGit
 
-A small Git and version-control learning repository implemented primarily in C++.
+it is a rudimentary Git client implemented in C++17 to understand the core
+internals behind Git.
 
-## Overview
+built as part of the Systems and Security SIG
+Recruitment Task - Version Control Systems.
 
-This repository contains files and generated build artifacts used to experiment with version-control workflows and repository history. The project is predominantly C++, with a small amount of Assembly output.
+The goal is not to recreate the complete Git implementation, but to
+understand and implement the fundamental concepts behind a distributed
+version control system such as:
 
-## Repository contents
+- Content-addressed storage
+- SHA-256 hashing
+- Blob objects
+- Tree objects
+- Commits
+- Staging area / index
+- Branches
+- HEAD
+- Checkout
+- Commit history
 
-- `.mygit/` — repository-specific Git data or supporting files.
-- `hello.txt` — sample text file used in the repository.
-- `feature.txt` — sample file associated with a feature workflow.
-- `libcrypto_a_h.s` — Assembly source/output artifact.
-- `*.o` — compiled object files.
+---
 
-## Languages
+## Features
 
-- C++ — approximately 97.8%
-- Assembly — approximately 2.2%
+### Implemented
 
-## Getting started
+- `init`
+- `add <file>`
+- `commit -m "<message>"`
+- `log`
+- `status`
+- `branch <branch-name>`
+- `checkout <branch-name>`
 
-Clone the repository and inspect the source and supporting files:
+### Additional safety
 
-```bash
-git clone https://github.com/pavankanna766-netizen/version_control_system.git
-cd version_control_system
-```
+Checkout detects modified tracked files and refuses to overwrite
+uncommitted changes.
 
-Because the repository currently contains compiled artifacts rather than a documented build system, refer to the project files and commit history for the intended build and experiment workflow.
+For example:
 
-## Contributing
-
-Create a feature branch for changes, keep commits focused, and open a pull request with a clear description of the changes.
+```text
+Your local changes would be overwritten by checkout.
