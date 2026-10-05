@@ -41,11 +41,17 @@ g++ -std=c++17 main.cpp -lssl -lcrypto -o mygit.exe
 ## Usage
 
 mygit init
+
 mygit add <file>
+
 mygit commit -m "message"
+
 mygit log
+
 mygit status
+
 mygit branch <name>
+
 mygit checkout <name>
 
 ## Checkout Safety
