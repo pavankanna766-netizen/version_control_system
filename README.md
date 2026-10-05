@@ -6,41 +6,54 @@ internals behind Git.
 built as part of the Systems and Security SIG
 Recruitment Task - Version Control Systems.
 
-The goal is not to recreate the complete Git implementation, but to
-understand and implement the fundamental concepts behind a distributed
-version control system such as:
-
-- Content-addressed storage
-- SHA-256 hashing
-- Blob objects
-- Tree objects
-- Commits
-- Staging area / index
-- Branches
-- HEAD
-- Checkout
-- Commit history
-
----
-
 ## Features
+- init
+- add <file>
+- commit -m
+- log
+- status
+- branch
+- checkout
 
-### Implemented
+## Architecture
+Working Directory
+       ↓
+     Index
+       ↓
+     Tree
+       ↓
+    Commit
+       ↓
+    Branch
+       ↑
+      HEAD
 
-- `init`
-- `add <file>`
-- `commit -m "<message>"`
-- `log`
-- `status`
-- `branch <branch-name>`
-- `checkout <branch-name>`
+## Object Model
 
-### Additional safety
+Blob  → file contents
+Tree  → filename → blob hash
+Commit → tree + parent + metadata
 
-Checkout detects modified tracked files and refuses to overwrite
-uncommitted changes.
+## Build
 
-For example:
+g++ -std=c++17 main.cpp -lssl -lcrypto -o mygit.exe
 
-```text
-Your local changes would be overwritten by checkout.
+## Usage
+
+mygit init
+mygit add <file>
+mygit commit -m "message"
+mygit log
+mygit status
+mygit branch <name>
+mygit checkout <name>
+
+## Checkout Safety
+
+Checkout refuses to overwrite modified tracked files.
+
+## Limitations
+
+This is a rudimentary educational implementation and does not
+implement the complete Git object format, merge, remote operations,
+conflict resolution, etc.
