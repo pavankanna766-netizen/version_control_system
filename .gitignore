@@ -1,0 +1,27 @@
+# Compiled object files
+*.o
+*.obj
+
+# Assembly artifacts
+*.s
+
+# Libraries
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Executables
+*.exe
+*.out
+
+# IDE files
+.vscode/
+.vs/
+*.swp
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
